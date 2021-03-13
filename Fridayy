@@ -1,0 +1,236 @@
+if not writefile or not readfile then
+    local player = game.Players.LocalPlayer
+    local hint = Instance.new("Hint")
+    hint.Text = "holy shit get a better exploiter you dumbass shit"
+    hint.Parent = game:GetService("CoreGui")
+    coroutine.wrap(function() wait(10) hint:Destroy() end)()
+    wait(10)
+    player:Kick("Dumbass get a better exploit for example: synapse,sentinel,krnl")
+end
+
+local getcontext = syn and syn.get_thread_identity or getthreadcontext
+local setcontext = syn and syn.set_thread_identity or setthreadcontext
+local material = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/MaterialLua/master/Module.lua"))()
+local HttpService = game:GetService("HttpService")
+local wait = wait;
+local cowrap = coroutine.wrap;
+local rnd = math.random;
+
+local vim = game:GetService("VirtualInputManager")
+local uis = game:GetService("UserInputService")
+local plr = game:GetService("Players").LocalPlayer
+local root = plr.Character.HumanoidRootPart
+
+local del = 0.2
+
+local ui = material.Load({
+    Title = "fnf auto player | discord.gg/WuQE59cGAb",
+    Style = 1,
+    SizeX = 400,
+    SizeY = 400,
+    Theme = "Dark"
+})
+
+local cgui = game:GetService("CoreGui"):WaitForChild("fnf auto player | discord.gg/WuQE59cGAb")
+
+local main = ui.New({
+    Title = "Main"
+})
+
+local delspeed = main.Slider({
+    Text = "Del Speed (Divide By 100)",
+    Callback = function(value)
+        del = value / 100
+    end,
+    Min = 1,
+    Max = 100,
+    Def = 20
+})
+
+local fov = main.Slider({
+    Text = "FOV",
+    Callback = function(value)
+        workspace.Camera.FieldOfView = value
+    end,
+    Min = 0,
+    Max = 120,
+    Def = 70
+})
+
+local name = main.TextField({
+    Text = "Name",
+})
+
+local delay = main.TextField({
+    Text = "Del Value 1 - 100",
+})
+
+local save = main.Button({
+    Text = "Save",
+    Callback = function()
+        local savedName = name:GetText()
+        local savedDelay = tonumber(delay:GetText())
+        
+        if not savedDelay then return end -- prevent funky monkey
+        
+        local save, result = pcall(readfile, "fnfAutoplayer.json")
+        if not save then
+            local saved = {savedName = savedDelay}
+            writefile("fnfAutoPlayer.json", HttpService:JSONEncode(saved))
+        else
+            result = HttpService:JSONDecode(result)
+            result[savedName] = savedDelay
+            writefile("fnfAutoPlayer.json", HttpService:JSONEncode(result))
+        end
+
+		main.Button({
+            Text = ("%s | %s"):format(savedName, savedDelay),
+            Callback = function()
+                del = delay / 100
+            end
+        })
+    end
+})
+
+local overrideJson = main.Toggle({
+    Text = "Override JSON",
+    Callback = function() end,
+    Enabled = false
+})
+
+local load;
+load = main.TextField({
+    Text = "Load JSON Config",
+    Callback = function()
+        local text = load:GetText()
+        if not pcall(HttpService.JSONDecode, HttpService, text) then
+            load:SetText("invalid json")
+        else
+            if overrideJson:GetState() then
+                writefile("fnfAutoPlayer.json", text)
+            end
+            local result = HttpService:JSONDecode(text)
+            for name, delay in pairs(result) do
+                main.Button({
+                    Text = ("%s | %s"):format(name, delay),
+                    Callback = function()
+                        del = delay / 100
+                    end
+                })
+            end
+            
+            load:SetText("")
+        end
+    end
+})
+
+local chanceToHit;
+local chanceNum = 100;
+
+chanceToHit = main.TextField({
+    Text = "Chance To Hit (0 - 100)%",
+    Callback = function()
+        local chance = tonumber(chanceToHit:GetText())
+        if chance and chance >= 0 and chance <= 100 then
+            chanceNum = chance
+        end
+    end
+})
+
+local delConfig = main.Button({
+    Text = "Delete Config",
+    Callback = function()
+        pcall(delfile, "fnfAutoPlayer.json")
+        game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, plr)
+    end
+})
+
+local enabled = main.Toggle({
+    Text = "Enabled",
+    Callback = function() end,
+    Enabled = true
+})
+
+local save, result = pcall(readfile, "fnfAutoplayer.json")
+if save then
+    result = HttpService:JSONDecode(result)
+    for name, delay in pairs(result) do
+        main.Button({
+            Text = ("%s | %s"):format(name, delay),
+            Callback = function()
+                del = delay / 100
+            end
+        })
+    end
+end
+
+local function getpos()
+    local parts = workspace.Stages:GetDescendants()
+    local nearest = nil;
+    local closest = 0;
+    
+    for i,v in pairs(parts) do
+        if v.Name:sub(1, 1) == "P" and v:IsA("BasePart") then
+            if closest < (root.Position - v.Position).Magnitude then
+                nearest = v
+                closest = (root.Position - v.Position).Magnitude
+            end
+        end
+    end
+    
+    return nearest.Name:gsub("%D+", "")
+end
+
+local keymap = {
+    ["Z"] = Enum.KeyCode.Z,
+    ["X"] = Enum.KeyCode.X,
+    ["N"] = Enum.KeyCode.N,
+    ["M"] = Enum.KeyCode.M
+}
+
+local player = game:GetService("Players").LocalPlayer
+local gui = player.PlayerGui
+
+local function hit(key, await)
+    if not enabled:GetState() then return end
+    if (rnd() * 100) >= chanceNum then return end
+    wait(2 / await - del)
+    vim:SendKeyEvent(true, keymap[key], false, game)
+    vim:SendKeyEvent(false, keymap[key], false, game)
+end
+
+uis.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == Enum.KeyCode.RightShift and cgui then
+        cgui.Enabled = not cgui.Enabled
+    end
+end)
+
+gui.ChildAdded:Connect(function(ui)
+    if ui.Name:lower():find("fnf") then
+        local scr = ui:WaitForChild("FNFMain")
+        local succ, env = pcall(getsenv, scr)
+
+        if not succ then
+            wait(2)
+            succ, env = pcall(getsenv, scr)
+        end
+        
+        local orig = env.Note
+        local our = getpos();
+        
+        env.Note = function(key, opp, await)
+            local old = getcontext()
+            setcontext(7)
+            
+            local turn = opp:gsub("%D+", "")
+            if tonumber(our) == tonumber(turn) then
+                cowrap(hit)(key, await)
+            end
+            
+            setcontext(old)
+            
+            return orig(key, opp, await)
+        end
+    end
+end)
